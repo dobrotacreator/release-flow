@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +28,33 @@ export function GanttChart({ release }: GanttChartProps) {
     [ganttData.tasks],
   );
 
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const headerScroll = headerScrollRef.current;
+    const contentScroll = contentScrollRef.current;
+
+    if (!headerScroll || !contentScroll) return;
+
+    const syncScroll = (source: HTMLDivElement, target: HTMLDivElement) => {
+      return () => {
+        target.scrollLeft = source.scrollLeft;
+      };
+    };
+
+    const headerScrollHandler = syncScroll(headerScroll, contentScroll);
+    const contentScrollHandler = syncScroll(contentScroll, headerScroll);
+
+    headerScroll.addEventListener("scroll", headerScrollHandler);
+    contentScroll.addEventListener("scroll", contentScrollHandler);
+
+    return () => {
+      headerScroll.removeEventListener("scroll", headerScrollHandler);
+      contentScroll.removeEventListener("scroll", contentScrollHandler);
+    };
+  }, []);
+
   if (ganttData.tasks.length === 0) {
     return (
       <Card className="border-dashed">
@@ -49,24 +76,22 @@ export function GanttChart({ release }: GanttChartProps) {
     (dateRange.end.getTime() - dateRange.start.getTime()) /
       (1000 * 60 * 60 * 24),
   );
-  const dayWidth = 40; // pixels per day
+  const dayWidth = 60; // pixels per day
   const chartWidth = totalDays * dayWidth;
   const taskHeight = 40;
   const taskSpacing = 8;
 
   const getTaskPosition = (task: GanttTask) => {
-    const startOffset = Math.floor(
+    const startOffset =
       (task.startDate.getTime() - dateRange.start.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
-    const duration = Math.ceil(
+      (1000 * 60 * 60 * 24);
+    const duration =
       (task.endDate.getTime() - task.startDate.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
+      (1000 * 60 * 60 * 24);
 
     return {
       left: startOffset * dayWidth,
-      width: Math.max(duration * dayWidth, dayWidth), // Minimum width of 1 day
+      width: Math.max(duration * dayWidth, 8), // Minimum width of 8px for visibility
     };
   };
 
@@ -147,12 +172,15 @@ export function GanttChart({ release }: GanttChartProps) {
               <div className="sticky top-0 z-10 bg-background border-b">
                 <div className="flex">
                   {/* Fixed task names header */}
-                  <div className="w-48 border-r bg-muted/30 p-4 flex-shrink-0">
+                  <div className="w-64 border-r bg-muted/30 p-4 flex-shrink-0">
                     <div className="font-medium text-sm">Tasks</div>
                   </div>
 
                   {/* Scrollable timeline header */}
-                  <div className="flex-1 overflow-x-auto">
+                  <div
+                    className="flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    ref={headerScrollRef}
+                  >
                     <div className="flex" style={{ minWidth: chartWidth }}>
                       {timelineHeaders.map((date, index) => {
                         const isWeekend =
@@ -184,7 +212,7 @@ export function GanttChart({ release }: GanttChartProps) {
               <div className="max-h-[600px] overflow-y-auto">
                 <div className="flex">
                   {/* Fixed task names column */}
-                  <div className="w-48 flex-shrink-0">
+                  <div className="w-64 flex-shrink-0">
                     {ganttData.tasks.map((task, index) => (
                       <div
                         key={task.id}
@@ -193,12 +221,12 @@ export function GanttChart({ release }: GanttChartProps) {
                       >
                         <div className="flex flex-col justify-center h-full">
                           <div
-                            className="font-medium text-sm truncate"
+                            className="font-medium text-sm truncate mb-1"
                             title={task.name}
                           >
                             {task.name}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2">
                             {task.assignedEmployee && (
                               <Badge variant="outline" className="text-xs">
                                 <User className="h-3 w-3 mr-1" />
@@ -215,7 +243,10 @@ export function GanttChart({ release }: GanttChartProps) {
                   </div>
 
                   {/* Scrollable timeline content */}
-                  <div className="flex-1 overflow-x-auto">
+                  <div
+                    className="flex-1 overflow-x-auto"
+                    ref={contentScrollRef}
+                  >
                     <div className="relative" style={{ minWidth: chartWidth }}>
                       {ganttData.tasks.map((task, index) => {
                         const position = getTaskPosition(task);
@@ -241,10 +272,11 @@ export function GanttChart({ release }: GanttChartProps) {
                                   >
                                     <div className="flex items-center gap-1 truncate">
                                       <Clock className="h-3 w-3" />
-                                      <span>
-                                        {formatGanttDate(task.startDate)} -{" "}
-                                        {formatGanttDate(task.endDate)}
-                                      </span>
+                                      {position.width > 60 && (
+                                        <span className="truncate">
+                                          {task.name}
+                                        </span>
+                                      )}
                                     </div>
 
                                     {/* Progress overlay */}
@@ -264,35 +296,32 @@ export function GanttChart({ release }: GanttChartProps) {
                                     </div>
                                     <div className="text-sm space-y-1">
                                       <div>
-                                        📅 Start:{" "}
+                                        📅{" "}
                                         {task.startDate.toLocaleDateString(
                                           "ru-RU",
-                                        )}
-                                      </div>
-                                      <div>
-                                        🏁 End:{" "}
+                                        )}{" "}
+                                        -{" "}
                                         {task.endDate.toLocaleDateString(
                                           "ru-RU",
                                         )}
                                       </div>
                                       <div>
-                                        ⏱️ Duration:{" "}
-                                        {Math.ceil(
-                                          (task.endDate.getTime() -
+                                        ⏱️ h (
+                                        {Math.round(
+                                          ((task.endDate.getTime() -
                                             task.startDate.getTime()) /
-                                            (1000 * 60 * 60 * 24),
-                                        )}{" "}
-                                        days
+                                            (1000 * 60 * 60 * 24)) *
+                                            10,
+                                        ) / 10}{" "}
+                                        days)
                                       </div>
                                       {task.assignedEmployee && (
-                                        <div>
-                                          👤 Assigned: {task.assignedEmployee}
-                                        </div>
+                                        <div>👤 {task.assignedEmployee}</div>
                                       )}
-                                      <div>📊 Progress: {task.progress}%</div>
+                                      <div>📊 {task.progress}% complete</div>
                                       {task.dependencies.length > 0 && (
                                         <div>
-                                          🔗 Dependencies:{" "}
+                                          🔗 Depends on{" "}
                                           {task.dependencies.length} task(s)
                                         </div>
                                       )}
