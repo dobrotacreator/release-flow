@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -43,22 +43,41 @@ export function TaskDialog({
   existingTasks,
   onSave,
 }: TaskDialogProps) {
-  const [name, setName] = useState(task?.name || "");
-  const [estimatedHours, setEstimatedHours] = useState(
-    task?.estimatedHours || 8,
-  );
+  const [name, setName] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState(8);
   const [assignedEmployeeId, setAssignedEmployeeId] = useState<string | null>(
-    task?.assignedEmployeeId || null,
+    null,
   );
-  const [blockerTaskIds, setBlockerTaskIds] = useState<string[]>(
-    task?.blockerTaskIds || [],
-  );
-  const [status, setStatus] = useState<Task["status"]>(
-    task?.status || "pending",
-  );
+  const [blockerTaskIds, setBlockerTaskIds] = useState<string[]>([]);
+  const [status, setStatus] = useState<Task["status"]>("pending");
 
   // Filter out the current task from potential blockers to prevent self-dependency
   const availableBlockerTasks = existingTasks.filter((t) => t.id !== task?.id);
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setEstimatedHours(8);
+      setAssignedEmployeeId(null);
+      setBlockerTaskIds([]);
+      setStatus("pending");
+      return;
+    }
+
+    if (task) {
+      setName(task?.name || "");
+      setEstimatedHours(task?.estimatedHours || 8);
+      setAssignedEmployeeId(task?.assignedEmployeeId || null);
+      setBlockerTaskIds(task?.blockerTaskIds || []);
+      setStatus(task?.status || "pending");
+    } else {
+      setName("");
+      setEstimatedHours(8);
+      setAssignedEmployeeId(null);
+      setBlockerTaskIds([]);
+      setStatus("pending");
+    }
+  }, [task, open]);
 
   const handleSave = () => {
     if (!name.trim()) return;

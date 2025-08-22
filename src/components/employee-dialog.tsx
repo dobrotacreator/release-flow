@@ -42,9 +42,9 @@ export function EmployeeDialog({
     }
 
     if (employee) {
-      setName(employee.name ?? "");
-      setPosition(employee.position ?? "");
-      setCapacityPeriods(employee.capacityPeriods || []);
+      setName(employee?.name ?? "");
+      setPosition(employee?.position ?? "");
+      setCapacityPeriods(employee?.capacityPeriods || []);
     } else {
       setName("");
       setPosition("");
