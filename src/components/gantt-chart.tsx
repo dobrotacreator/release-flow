@@ -213,27 +213,43 @@ export function GanttChart({ release }: GanttChartProps) {
                 <div className="flex">
                   {/* Fixed task names column */}
                   <div className="w-64 flex-shrink-0">
-                    {ganttData.tasks.map((task, index) => (
+                    {ganttData.tasks.map((task) => (
                       <div
                         key={task.id}
                         className="border-b border-r p-3 bg-background"
                         style={{ height: taskHeight + taskSpacing }}
                       >
-                        <div className="flex flex-col justify-center h-full">
+                        <div className="flex items-center justify-between h-full min-w-0">
                           <div
-                            className="font-medium text-sm truncate mb-1"
+                            className="font-medium text-sm truncate w-full min-w-0 pr-2"
                             title={task.name}
                           >
-                            {task.name}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="truncate w-full min-w-0 whitespace-nowrap overflow-hidden">
+                                  {task.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="font-semibold">{task.name}</div>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                          <div className="flex items-center gap-2">
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             {task.assignedEmployee && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge
+                                variant="outline"
+                                className="text-xs flex-shrink-0"
+                              >
                                 <User className="h-3 w-3 mr-1" />
                                 {task.assignedEmployee}
                               </Badge>
                             )}
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs flex-shrink-0"
+                            >
                               {task.progress}%
                             </Badge>
                           </div>
