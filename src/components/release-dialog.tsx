@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,18 +37,50 @@ export function ReleaseDialog({
   release,
   onSave,
 }: ReleaseDialogProps) {
-  const [name, setName] = useState(release?.name || "");
-  const [description, setDescription] = useState(release?.description || "");
-  const [startDate, setStartDate] = useState<Date>(
-    release ? new Date(release.startDate) : new Date(),
-  );
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState<Date>(new Date());
   const [targetEndDate, setTargetEndDate] = useState<Date | undefined>(
-    release?.targetEndDate ? new Date(release.targetEndDate) : undefined,
+    undefined,
   );
-  const [customHolidays, setCustomHolidays] = useState<Date[]>(
-    release?.customHolidays.map((h) => new Date(h)) || [],
-  );
+  const [customHolidays, setCustomHolidays] = useState<Date[]>([]);
   const [newHoliday, setNewHoliday] = useState<Date | undefined>();
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setDescription("");
+      setStartDate(new Date());
+      setTargetEndDate(undefined);
+      setCustomHolidays([]);
+      setNewHoliday(undefined);
+      return;
+    }
+
+    if (release) {
+      setName(release.name ?? "");
+      setDescription(release.description ?? "");
+      setStartDate(
+        release.startDate ? new Date(release.startDate) : new Date(),
+      );
+      setTargetEndDate(
+        release.targetEndDate ? new Date(release.targetEndDate) : undefined,
+      );
+      setCustomHolidays(
+        Array.isArray(release.customHolidays)
+          ? release.customHolidays.map((h) => new Date(h))
+          : [],
+      );
+      setNewHoliday(undefined);
+    } else {
+      setName("");
+      setDescription("");
+      setStartDate(new Date());
+      setTargetEndDate(undefined);
+      setCustomHolidays([]);
+      setNewHoliday(undefined);
+    }
+  }, [release, open]);
 
   const handleSave = () => {
     if (!name.trim()) return;
