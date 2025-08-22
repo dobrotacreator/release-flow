@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,57 +8,88 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CalendarIcon, Plus, Trash2, User } from "lucide-react"
-import type { Employee, CapacityPeriod } from "@/lib/types"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarIcon, Plus, Trash2, User } from "lucide-react";
+import type { Employee, CapacityPeriod } from "@/lib/types";
 
 interface EmployeeDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  employee?: Employee | null
-  onSave: (employee: Omit<Employee, "id">) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employee?: Employee | null;
+  onSave: (employee: Omit<Employee, "id">) => void;
 }
 
-export function EmployeeDialog({ open, onOpenChange, employee, onSave }: EmployeeDialogProps) {
-  const [name, setName] = useState(employee?.name || "")
-  const [position, setPosition] = useState(employee?.position || "")
-  const [capacityPeriods, setCapacityPeriods] = useState<CapacityPeriod[]>(employee?.capacityPeriods || [])
+export function EmployeeDialog({
+  open,
+  onOpenChange,
+  employee,
+  onSave,
+}: EmployeeDialogProps) {
+  const [name, setName] = useState("");
+  const [position, setPosition] = useState("");
+  const [capacityPeriods, setCapacityPeriods] = useState<CapacityPeriod[]>([]);
+
+  useEffect(() => {
+    if (!open) {
+      setName("");
+      setPosition("");
+      setCapacityPeriods([]);
+      return;
+    }
+
+    if (employee) {
+      setName(employee.name ?? "");
+      setPosition(employee.position ?? "");
+      setCapacityPeriods(employee.capacityPeriods || []);
+    } else {
+      setName("");
+      setPosition("");
+      setCapacityPeriods([]);
+    }
+  }, [employee, open]);
 
   const handleSave = () => {
-    if (!name.trim() || !position.trim()) return
+    if (!name.trim() || !position.trim()) return;
 
     onSave({
       name: name.trim(),
       position: position.trim(),
       capacityPeriods,
-    })
+    });
 
-    onOpenChange(false)
-  }
+    onOpenChange(false);
+  };
 
   const addCapacityPeriod = () => {
     const newPeriod: CapacityPeriod = {
       id: crypto.randomUUID(),
       startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 30 days from now
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0], // 30 days from now
       hoursPerDay: 8,
       description: "",
-    }
-    setCapacityPeriods([...capacityPeriods, newPeriod])
-  }
+    };
+    setCapacityPeriods([...capacityPeriods, newPeriod]);
+  };
 
-  const updateCapacityPeriod = (index: number, updates: Partial<CapacityPeriod>) => {
-    const updated = capacityPeriods.map((period, i) => (i === index ? { ...period, ...updates } : period))
-    setCapacityPeriods(updated)
-  }
+  const updateCapacityPeriod = (
+    index: number,
+    updates: Partial<CapacityPeriod>,
+  ) => {
+    const updated = capacityPeriods.map((period, i) =>
+      i === index ? { ...period, ...updates } : period,
+    );
+    setCapacityPeriods(updated);
+  };
 
   const removeCapacityPeriod = (index: number) => {
-    setCapacityPeriods(capacityPeriods.filter((_, i) => i !== index))
-  }
+    setCapacityPeriods(capacityPeriods.filter((_, i) => i !== index));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,7 +111,12 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., John Smith" />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., John Smith"
+              />
             </div>
 
             <div className="space-y-2">
@@ -89,7 +125,7 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                 id="position"
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
-                placeholder="e.g., Senior Developer, Designer"
+                placeholder="e.g., Senior Developer"
               />
             </div>
           </div>
@@ -100,10 +136,16 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
               <div>
                 <Label className="text-base">Capacity Periods</Label>
                 <p className="text-sm text-muted-foreground">
-                  Define working hours for different time periods. Set hours to 0 for vacation periods.
+                  Define working hours for different time periods. Set hours to
+                  0 for vacation periods.
                 </p>
               </div>
-              <Button onClick={addCapacityPeriod} variant="outline" size="sm" className="gap-2 bg-transparent">
+              <Button
+                onClick={addCapacityPeriod}
+                variant="outline"
+                size="sm"
+                className="gap-2 bg-transparent"
+              >
                 <Plus className="h-4 w-4" />
                 Add Period
               </Button>
@@ -120,7 +162,12 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                     <br />
                     Add periods to specify working hours over time.
                   </p>
-                  <Button onClick={addCapacityPeriod} variant="outline" size="sm" className="gap-2 bg-transparent">
+                  <Button
+                    onClick={addCapacityPeriod}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 bg-transparent"
+                  >
                     <Plus className="h-4 w-4" />
                     Add First Period
                   </Button>
@@ -150,7 +197,11 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                           <Input
                             type="date"
                             value={period.startDate}
-                            onChange={(e) => updateCapacityPeriod(index, { startDate: e.target.value })}
+                            onChange={(e) =>
+                              updateCapacityPeriod(index, {
+                                startDate: e.target.value,
+                              })
+                            }
                           />
                         </div>
 
@@ -159,7 +210,11 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                           <Input
                             type="date"
                             value={period.endDate}
-                            onChange={(e) => updateCapacityPeriod(index, { endDate: e.target.value })}
+                            onChange={(e) =>
+                              updateCapacityPeriod(index, {
+                                endDate: e.target.value,
+                              })
+                            }
                             min={period.startDate}
                           />
                         </div>
@@ -173,7 +228,10 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                             step="0.5"
                             value={period.hoursPerDay}
                             onChange={(e) =>
-                              updateCapacityPeriod(index, { hoursPerDay: Number.parseFloat(e.target.value) || 0 })
+                              updateCapacityPeriod(index, {
+                                hoursPerDay:
+                                  Number.parseFloat(e.target.value) || 0,
+                              })
                             }
                             placeholder="8"
                           />
@@ -184,7 +242,11 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                         <Label>Description (Optional)</Label>
                         <Input
                           value={period.description || ""}
-                          onChange={(e) => updateCapacityPeriod(index, { description: e.target.value })}
+                          onChange={(e) =>
+                            updateCapacityPeriod(index, {
+                              description: e.target.value,
+                            })
+                          }
                           placeholder={
                             period.hoursPerDay === 0
                               ? "e.g., Vacation, Sick leave"
@@ -197,7 +259,8 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
                         <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
                           <CalendarIcon className="h-4 w-4 text-amber-600" />
                           <span className="text-sm text-amber-700 dark:text-amber-300">
-                            This period is marked as unavailable (vacation/leave)
+                            This period is marked as unavailable
+                            (vacation/leave)
                           </span>
                         </div>
                       )}
@@ -213,12 +276,14 @@ export function EmployeeDialog({ open, onOpenChange, employee, onSave }: Employe
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !position.trim()}>
+          <Button
+            onClick={handleSave}
+            disabled={!name.trim() || !position.trim()}
+          >
             {employee ? "Update Employee" : "Add Employee"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
