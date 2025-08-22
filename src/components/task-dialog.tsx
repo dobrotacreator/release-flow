@@ -246,9 +246,9 @@ export function TaskDialog({
                     />
                     <Label
                       htmlFor={`blocker-${blockerTask.id}`}
-                      className="flex-1 cursor-pointer"
+                      className="flex-1 cursor-pointer min-w-0"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between w-full">
                         <span className="text-sm">{blockerTask.name}</span>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">
@@ -285,12 +285,25 @@ export function TaskDialog({
               <div className="space-y-2">
                 <Label className="text-sm">Selected Blockers:</Label>
                 <div className="flex flex-wrap gap-2">
-                  {blockerTaskIds.map((taskId) => (
-                    <Badge key={taskId} variant="secondary" className="gap-1">
-                      <Link className="h-3 w-3" />
-                      {getTaskName(taskId)}
-                    </Badge>
-                  ))}
+                  {blockerTaskIds.map((taskId) => {
+                    const name = getTaskName(taskId);
+                    return (
+                      <Badge
+                        key={taskId}
+                        variant="secondary"
+                        className="gap-1 max-w-[200px] truncate overflow-hidden whitespace-nowrap"
+                        title={name}
+                      >
+                        <Link
+                          className="h-3 w-3 flex-none shrink-0"
+                          aria-hidden
+                        />
+                        <span className="ml-1 overflow-hidden truncate inline-block max-w-[140px]">
+                          {name}
+                        </span>
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
             )}
