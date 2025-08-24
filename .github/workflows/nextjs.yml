@@ -24,7 +24,6 @@ jobs:
       - name: Detect package manager
         id: detect-package-manager
         run: |
-          # detect pnpm first, then yarn, then npm (package.json fallback)
           if [ -f "${{ github.workspace }}/pnpm-lock.yaml" ]; then
             echo "manager=pnpm" >> $GITHUB_OUTPUT
             echo "command=install --frozen-lockfile" >> $GITHUB_OUTPUT
@@ -49,22 +48,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # allow setup-node to handle caching for the detected manager (npm / yarn / pnpm)
           cache: ${{ steps.detect-package-manager.outputs.manager }}
 
       - name: Setup pnpm (official action)
-        if: steps.detect-package-manager.outputs.manager == 'pnpm'
+        if: ${{ steps.detect-package-manager.outputs.manager == 'pnpm' }}
         uses: pnpm/action-setup@v2
         with:
           version: 8
-
-      # Ensure pnpm is available via corepack if we're using pnpm
-      - name: Enable corepack & pnpm (if pnpm)
-        if: steps.detect-package-manager.outputs.manager == 'pnpm'
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
-          pnpm -v
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -76,14 +66,12 @@ jobs:
         with:
           path: |
             .next/cache
-          # include pnpm-lock.yaml in key so cache busts correctly for pnpm
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock', '**/pnpm-lock.yaml') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock', '**/pnpm-lock.yaml') }}-
 
       - name: Install dependencies
         run: |
-          # run the detected manager command (for pnpm use --frozen-lockfile)
           if [ "${{ steps.detect-package-manager.outputs.manager }}" = "pnpm" ]; then
             pnpm install --frozen-lockfile
           elif [ "${{ steps.detect-package-manager.outputs.manager }}" = "yarn" ]; then
@@ -94,8 +82,6 @@ jobs:
 
       - name: Build with Next.js
         run: |
-          # If you want a static export into ./out, run both build and export.
-          # Using the detected runner to execute next commands:
           if [ "${{ steps.detect-package-manager.outputs.manager }}" = "pnpm" ]; then
             pnpm exec next build
             pnpm exec next export
