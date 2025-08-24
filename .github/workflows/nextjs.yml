@@ -52,6 +52,12 @@ jobs:
           # allow setup-node to handle caching for the detected manager (npm / yarn / pnpm)
           cache: ${{ steps.detect-package-manager.outputs.manager }}
 
+      - name: Setup pnpm (official action)
+        if: steps.detect-package-manager.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       # Ensure pnpm is available via corepack if we're using pnpm
       - name: Enable corepack & pnpm (if pnpm)
         if: steps.detect-package-manager.outputs.manager == 'pnpm'
