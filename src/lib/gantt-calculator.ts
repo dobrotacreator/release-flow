@@ -30,6 +30,7 @@ export function calculateGanttData(release: Release): GanttData {
 
   for (const task of sortedTasks) {
     const schedule = calculateTaskSchedule(
+      release.startDate,
       task,
       taskScheduleMap,
       employeeCapacities,
@@ -120,31 +121,36 @@ function getEmployeeHoursForDate(employee: Employee, date: Date): number {
 }
 
 function calculateTaskSchedule(
+  releaseStartDate: string,
   task: Task,
   taskScheduleMap: Map<string, { startDate: Date; endDate: Date }>,
   employeeCapacities: Map<string, EmployeeCapacity[]>,
   customHolidays: string[],
 ): { startDate: Date; endDate: Date } | null {
   // Find the earliest start date based on dependencies
-  let earliestStartDate = new Date(task.calculatedStartDate || new Date());
+  let earliestStartDate = new Date(
+    task.calculatedStartDate || releaseStartDate,
+  );
+  earliestStartDate = nextWorkingDay(earliestStartDate, customHolidays);
 
   // Check blocker dependencies
   for (const blockerId of task.blockerTaskIds) {
     const blockerSchedule = taskScheduleMap.get(blockerId);
     if (blockerSchedule && blockerSchedule.endDate >= earliestStartDate) {
-      earliestStartDate = new Date(blockerSchedule.endDate);
-      earliestStartDate.setDate(earliestStartDate.getDate() + 1); // Start day after blocker ends
-      // ensure earliestStartDate is a working day could be improved here
+      const afterBlocker = new Date(blockerSchedule.endDate);
+      afterBlocker.setDate(afterBlocker.getDate() + 1); // Start day after blocker ends
+      earliestStartDate = nextWorkingDay(afterBlocker, customHolidays);
     }
   }
 
   // If no employee assigned, use simple duration calculation
   if (!task.assignedEmployeeId) {
-    const endDate = addWorkingDays(
+    const rawEndDate = addWorkingDays(
       earliestStartDate,
       Math.ceil(task.estimatedHours / 8),
       customHolidays,
     );
+    const endDate = nextWorkingDay(rawEndDate, customHolidays);
     return { startDate: earliestStartDate, endDate };
   }
 
@@ -192,11 +198,21 @@ function calculateTaskSchedule(
 
   if (remainingHours <= 0 && lastUsedDateStr) {
     const endDate = new Date(lastUsedDateStr + "T00:00:00");
-    endDate.setDate(endDate.getDate() + 1);
+    endDate.setDate(endDate.getDate() - 1);
     return { startDate, endDate };
   } else {
     return null;
   }
+}
+
+function nextWorkingDay(date: Date, customHolidays: string[]): Date {
+  const d = new Date(date);
+  // normalize to local midnight to make comparisons predictable
+  d.setHours(0, 0, 0, 0);
+  while (!isWorkingDay(d, customHolidays)) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
 }
 
 function getTaskProgress(status: Task["status"]): number {
