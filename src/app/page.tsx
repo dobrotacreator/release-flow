@@ -293,7 +293,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold font-serif text-foreground">
-                Project Manager Pro
+                Release Flow
               </h1>
               <p className="text-muted-foreground">
                 Professional project planning and resource management
@@ -347,7 +347,7 @@ export default function HomePage() {
               <Calendar className="h-12 w-12 text-muted-foreground" />
             </div>
             <h2 className="text-2xl font-semibold font-serif mb-2">
-              Welcome to Project Manager Pro
+              Welcome to Release Flow
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Get started by creating your first release. Plan tasks, manage

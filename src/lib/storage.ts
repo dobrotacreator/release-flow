@@ -2,7 +2,7 @@
 
 import type { ProjectData, Release, Employee, Task } from "@/lib/types";
 import { v4 } from "uuid";
-const STORAGE_KEY = "project-manager-data";
+const STORAGE_KEY = "release-flow-data";
 
 export const defaultProjectData: ProjectData = {
   releases: [],

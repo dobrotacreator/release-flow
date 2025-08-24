@@ -16,7 +16,7 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Project Manager Pro",
+  title: "Release Flow",
   description:
     "Professional project management tool with Gantt charts and resource planning",
   generator: "v0.app",

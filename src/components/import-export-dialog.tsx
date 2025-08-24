@@ -68,7 +68,7 @@ export function ImportExportDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `project-manager-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `release-flow-backup-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -188,7 +188,7 @@ export function ImportExportDialog({
           </DialogTitle>
           <DialogDescription>
             Backup your project data or import data from another instance of
-            Project Manager Pro.
+            Release Flow.
           </DialogDescription>
         </DialogHeader>
 
