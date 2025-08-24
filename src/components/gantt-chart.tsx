@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/tooltip";
 import { Calendar, Clock, User, ArrowRight, Target } from "lucide-react";
 import {
-  calculateGanttData,
   formatGanttDate,
   getDateRange,
+  calculateGanttData,
 } from "@/lib/gantt-calculator";
 import type { Release, GanttTask } from "@/lib/types";
+import { NoticeCard } from "./NoticeCard";
 
 interface GanttChartProps {
   release: Release;
@@ -78,10 +79,15 @@ export function GanttChart({ release }: GanttChartProps) {
   );
   const dayWidth = 60; // pixels per day
   const chartWidth = totalDays * dayWidth;
-  const taskHeight = 40;
+  const taskHeight = 64;
   const taskSpacing = 8;
+  const headerHeight = 36;
 
   const getTaskPosition = (task: GanttTask) => {
+    if (!task.startDate || !task.endDate) {
+      return null;
+    }
+
     const startOffset =
       (task.startDate.getTime() - dateRange.start.getTime()) /
       (1000 * 60 * 60 * 24);
@@ -112,27 +118,37 @@ export function GanttChart({ release }: GanttChartProps) {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {ganttData.releaseDate && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Calculated Release Date
-                  </p>
-                  <p className="font-semibold text-lg text-primary">
-                    {ganttData.releaseDate.toLocaleDateString("ru-RU", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {ganttData.tasks.some((t) => !t.startDate || !t.endDate) ? (
+          <NoticeCard
+            variant="danger"
+            icon={<div className="w-3 h-3 rounded-full bg-rose-500" />}
+            subtitle="Capacity problem"
+            title={`${ganttData.tasks.filter((t) => !t.startDate || !t.endDate).length} task(s) could not be scheduled because assigned employees lack available hours in the planning horizon.`}
+          >
+            <ul className="list-disc ml-5 mt-2">
+              {ganttData.tasks
+                .filter((t) => !t.startDate || !t.endDate)
+                .map((t) => (
+                  <li key={t.id}>
+                    <span className="font-medium">{t.name}</span>
+                  </li>
+                ))}
+            </ul>
+          </NoticeCard>
+        ) : (
+          ganttData.releaseDate && (
+            <NoticeCard
+              variant="info"
+              icon={<Target className="h-5 w-5" />}
+              subtitle="Calculated Release Date"
+              title={ganttData.releaseDate.toLocaleDateString("en-EN", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            />
+          )
         )}
 
         {/* Legend */}
@@ -172,8 +188,14 @@ export function GanttChart({ release }: GanttChartProps) {
               <div className="sticky top-0 z-10 bg-background border-b">
                 <div className="flex">
                   {/* Fixed task names header */}
-                  <div className="w-64 border-r bg-muted/30 p-4 flex-shrink-0">
-                    <div className="font-medium text-sm">Tasks</div>
+                  <div
+                    className="w-64 border-r bg-muted/30 flex-shrink-0"
+                    style={{ height: headerHeight }}
+                  >
+                    <div className="h-full flex items-center px-3 text-sm font-semibold leading-tight bg-primary/6 text-primary">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Tasks
+                    </div>
                   </div>
 
                   {/* Scrollable timeline header */}
@@ -193,13 +215,15 @@ export function GanttChart({ release }: GanttChartProps) {
                         return (
                           <div
                             key={index}
-                            className={`border-r text-center py-2 text-xs font-medium flex-shrink-0 ${
-                              isNonWorking ? "bg-red-50 text-red-600" : ""
-                            }`}
-                            style={{ width: dayWidth }}
+                            className={`border-r text-center text-xs font-medium flex-shrink-0 flex flex-col items-center justify-center ${isNonWorking ? "bg-red-50 text-red-600" : ""}`}
+                            style={{ width: dayWidth, height: headerHeight }}
                           >
-                            <div>{formatGanttDate(date)}</div>
-                            {isHoliday && <div className="text-xs">🎉</div>}
+                            <div className="leading-tight text-[11px]">
+                              {formatGanttDate(date)}
+                            </div>
+                            {isHoliday && (
+                              <div className="text-xs mt-0.5">🎉</div>
+                            )}
                           </div>
                         );
                       })}
@@ -219,39 +243,64 @@ export function GanttChart({ release }: GanttChartProps) {
                         className="border-b border-r p-3 bg-background"
                         style={{ height: taskHeight + taskSpacing }}
                       >
-                        <div className="flex items-center justify-between h-full min-w-0">
-                          <div
-                            className="font-medium text-sm truncate w-full min-w-0 pr-2"
-                            title={task.name}
-                          >
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="truncate w-full min-w-0 whitespace-nowrap overflow-hidden">
-                                  {task.name}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <div className="font-semibold">{task.name}</div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
+                        <div className="flex flex-col justify-center h-full min-w-0 gap-1">
+                          {/* Task name */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="font-medium text-sm truncate w-full min-w-0 whitespace-nowrap overflow-hidden cursor-default">
+                                {task.name}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <div className="font-semibold">{task.name}</div>
+                            </TooltipContent>
+                          </Tooltip>
 
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-wrap text-xs min-w-0">
+                            {/* Assigned employee */}
                             {task.assignedEmployee && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs flex-shrink-0"
-                              >
-                                <User className="h-3 w-3 mr-1" />
-                                {task.assignedEmployee}
-                              </Badge>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className="flex-shrink min-w-0 max-w-[120px] truncate cursor-default"
+                                  >
+                                    <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                                    <span className="truncate">
+                                      {task.assignedEmployee}
+                                    </span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  {task.assignedEmployee}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
+
+                            {/* Progress */}
                             <Badge
                               variant="secondary"
-                              className="text-xs flex-shrink-0"
+                              className="flex-shrink-0"
                             >
                               {task.progress}%
                             </Badge>
+
+                            {/* No capacity */}
+                            {(!task.startDate || !task.endDate) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="destructive"
+                                    className="flex-shrink-0 cursor-default"
+                                  >
+                                    ⚠️
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  ⚠️ No capacity
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -274,84 +323,98 @@ export function GanttChart({ release }: GanttChartProps) {
                             style={{ height: taskHeight + taskSpacing }}
                           >
                             <div className="relative h-full">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div
-                                    className="absolute top-1 rounded-md flex items-center px-2 text-white text-xs font-medium shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                                    style={{
-                                      left: position.left,
-                                      width: position.width,
-                                      height: taskHeight - 2,
-                                      backgroundColor: task.color,
-                                      opacity: task.progress === 100 ? 0.8 : 1,
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-1 truncate">
-                                      <Clock className="h-3 w-3" />
-                                      {position.width > 60 && (
-                                        <span className="truncate">
-                                          {task.name}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {/* Progress overlay */}
-                                    {task.progress > 0 &&
-                                      task.progress < 100 && (
-                                        <div
-                                          className="absolute top-0 left-0 h-full bg-white/20 rounded-md"
-                                          style={{ width: `${task.progress}%` }}
-                                        />
-                                      )}
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <div className="space-y-2">
-                                    <div className="font-semibold">
-                                      {task.name}
-                                    </div>
-                                    <div className="text-sm space-y-1">
-                                      <div>
-                                        📅{" "}
-                                        {task.startDate.toLocaleDateString(
-                                          "ru-RU",
-                                        )}{" "}
-                                        -{" "}
-                                        {task.endDate.toLocaleDateString(
-                                          "ru-RU",
+                              {task.startDate && task.endDate && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className="absolute top-1 rounded-md flex items-center px-2 text-white text-xs font-medium shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                                      style={{
+                                        left: position!.left,
+                                        width: position!.width,
+                                        height: taskHeight - 2,
+                                        backgroundColor: task.color,
+                                        opacity:
+                                          task.progress === 100 ? 0.8 : 1,
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-1 truncate">
+                                        <Clock className="h-3 w-3" />
+                                        {position!.width > 60 && (
+                                          <span className="truncate">
+                                            {task.name}
+                                          </span>
                                         )}
                                       </div>
-                                      <div>
-                                        ⏱️ h (
-                                        {Math.round(
-                                          ((task.endDate.getTime() -
-                                            task.startDate.getTime()) /
-                                            (1000 * 60 * 60 * 24)) *
-                                            10,
-                                        ) / 10}{" "}
-                                        days)
-                                      </div>
-                                      {task.assignedEmployee && (
-                                        <div>👤 {task.assignedEmployee}</div>
-                                      )}
-                                      <div>📊 {task.progress}% complete</div>
-                                      {task.dependencies.length > 0 && (
-                                        <div>
-                                          🔗 Depends on{" "}
-                                          {task.dependencies.length} task(s)
-                                        </div>
-                                      )}
+
+                                      {/* Progress overlay */}
+                                      {task.progress > 0 &&
+                                        task.progress < 100 && (
+                                          <div
+                                            className="absolute top-0 left-0 h-full bg-white/20 rounded-md"
+                                            style={{
+                                              width: `${task.progress}%`,
+                                            }}
+                                          />
+                                        )}
                                     </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    className="max-w-xs"
+                                  >
+                                    <div className="space-y-2">
+                                      <div className="font-semibold">
+                                        {task.name}
+                                      </div>
+                                      <div className="text-sm space-y-1">
+                                        <div>
+                                          📅{" "}
+                                          {task.startDate.toLocaleDateString(
+                                            "ru-RU",
+                                          )}{" "}
+                                          -{" "}
+                                          {task.endDate.toLocaleDateString(
+                                            "ru-RU",
+                                          )}
+                                        </div>
+                                        <div>
+                                          ⏱️ h (
+                                          {Math.round(
+                                            ((task.endDate.getTime() -
+                                              task.startDate.getTime()) /
+                                              (1000 * 60 * 60 * 24)) *
+                                              10,
+                                          ) / 10}{" "}
+                                          days)
+                                        </div>
+                                        {task.assignedEmployee && (
+                                          <div>👤 {task.assignedEmployee}</div>
+                                        )}
+                                        <div>📊 {task.progress}% complete</div>
+                                        {task.dependencies.length > 0 && (
+                                          <div>
+                                            🔗 Depends on{" "}
+                                            {task.dependencies.length} task(s)
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
 
                               {/* Dependency arrows */}
                               {task.dependencies.map((depId) => {
                                 const depTask = ganttData.tasks.find(
                                   (t) => t.id === depId,
                                 );
-                                if (!depTask) return null;
+                                if (
+                                  !position ||
+                                  !depTask ||
+                                  !depTask.startDate ||
+                                  !depTask.endDate
+                                )
+                                  return null;
 
                                 const depPosition = getTaskPosition(depTask);
                                 const depIndex = ganttData.tasks.findIndex(
@@ -364,14 +427,15 @@ export function GanttChart({ release }: GanttChartProps) {
                                     className="absolute flex items-center text-muted-foreground"
                                     style={{
                                       left:
-                                        depPosition.left + depPosition.width,
+                                        depPosition!.left + depPosition!.width,
                                       top:
                                         (depIndex - index) *
                                           (taskHeight + taskSpacing) +
                                         taskHeight / 2,
                                       width:
                                         position.left -
-                                        (depPosition.left + depPosition.width),
+                                        (depPosition!.left +
+                                          depPosition!.width),
                                       height: 1,
                                     }}
                                   >

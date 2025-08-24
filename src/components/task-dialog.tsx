@@ -182,7 +182,9 @@ export function TaskDialog({
             <Label>Assigned Employee</Label>
             <Select
               value={assignedEmployeeId || "unassigned"}
-              onValueChange={(value) => setAssignedEmployeeId(value || null)}
+              onValueChange={(value) =>
+                setAssignedEmployeeId(value === "unassigned" ? null : value)
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an employee" />

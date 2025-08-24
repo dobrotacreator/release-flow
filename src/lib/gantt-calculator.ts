@@ -17,24 +17,20 @@ interface EmployeeCapacity {
 export function calculateGanttData(release: Release): GanttData {
   const { tasks, employees, startDate, customHolidays } = release;
 
-  // Sort tasks by priority (lower number = higher priority)
   const sortedTasks = [...tasks].sort((a, b) => a.priority - b.priority);
 
-  // Calculate employee capacities for the project duration
   const employeeCapacities = calculateEmployeeCapacities(
     employees,
     startDate,
     customHolidays,
   );
 
-  // Calculate task schedules
   const ganttTasks: GanttTask[] = [];
   const taskScheduleMap = new Map<string, { startDate: Date; endDate: Date }>();
 
   for (const task of sortedTasks) {
     const schedule = calculateTaskSchedule(
       task,
-      ganttTasks,
       taskScheduleMap,
       employeeCapacities,
       customHolidays,
@@ -43,8 +39,8 @@ export function calculateGanttData(release: Release): GanttData {
     const ganttTask: GanttTask = {
       id: task.id,
       name: task.name,
-      startDate: schedule.startDate,
-      endDate: schedule.endDate,
+      startDate: schedule?.startDate,
+      endDate: schedule?.endDate,
       progress: getTaskProgress(task.status),
       dependencies: task.blockerTaskIds,
       assignedEmployee: task.assignedEmployeeId
@@ -54,15 +50,17 @@ export function calculateGanttData(release: Release): GanttData {
     };
 
     ganttTasks.push(ganttTask);
-    taskScheduleMap.set(task.id, schedule);
+    if (schedule) {
+      taskScheduleMap.set(task.id, schedule);
+    }
   }
 
+  const isUnsched = ganttTasks.some((t) => !t.startDate || !t.endDate);
   const projectEndDate =
-    ganttTasks.length > 0
-      ? new Date(Math.max(...ganttTasks.map((t) => t.endDate.getTime())))
-      : new Date(startDate);
+    ganttTasks.length > 0 && !isUnsched
+      ? new Date(Math.max(...ganttTasks.map((t) => t.endDate!.getTime())))
+      : null;
 
-  // Create employee color mapping
   const employeeColors = employees.map((employee, index) => ({
     id: employee.id,
     name: employee.name,
@@ -72,7 +70,7 @@ export function calculateGanttData(release: Release): GanttData {
   return {
     tasks: ganttTasks,
     employees: employeeColors,
-    releaseDate: projectEndDate, // Add calculated release date
+    releaseDate: projectEndDate,
   };
 }
 
@@ -123,11 +121,10 @@ function getEmployeeHoursForDate(employee: Employee, date: Date): number {
 
 function calculateTaskSchedule(
   task: Task,
-  completedTasks: GanttTask[],
   taskScheduleMap: Map<string, { startDate: Date; endDate: Date }>,
   employeeCapacities: Map<string, EmployeeCapacity[]>,
   customHolidays: string[],
-): { startDate: Date; endDate: Date } {
+): { startDate: Date; endDate: Date } | null {
   // Find the earliest start date based on dependencies
   let earliestStartDate = new Date(task.calculatedStartDate || new Date());
 
@@ -137,6 +134,7 @@ function calculateTaskSchedule(
     if (blockerSchedule && blockerSchedule.endDate >= earliestStartDate) {
       earliestStartDate = new Date(blockerSchedule.endDate);
       earliestStartDate.setDate(earliestStartDate.getDate() + 1); // Start day after blocker ends
+      // ensure earliestStartDate is a working day could be improved here
     }
   }
 
@@ -152,40 +150,53 @@ function calculateTaskSchedule(
 
   const employeeCapacity =
     employeeCapacities.get(task.assignedEmployeeId) || [];
+
   let remainingHours = task.estimatedHours;
-  const currentDate = new Date(earliestStartDate);
   let startDate = new Date(earliestStartDate);
   let foundStart = false;
 
-  // Find first available working day at or after earliest start date
-  const endDate = new Date(currentDate);
-  while (currentDate && remainingHours > 0) {
-    const dateString = currentDate.toISOString().split("T")[0];
-    const dayCapacity = employeeCapacity.find((c) => c.date === dateString);
+  // Build quick map from date -> index for O(1) locate of starting index
+  const dateIndexMap = new Map<string, number>();
+  employeeCapacity.forEach((c, i) => dateIndexMap.set(c.date, i));
 
-    if (dayCapacity && dayCapacity.hoursAvailable > 0) {
-      const availableHours =
-        dayCapacity.hoursAvailable - dayCapacity.hoursAllocated;
+  const startDateStr = earliestStartDate.toISOString().split("T")[0];
+  // find starting index: exact date or next available index after earliestStartDate
+  let idx = dateIndexMap.has(startDateStr)
+    ? (dateIndexMap.get(startDateStr) as number)
+    : employeeCapacity.findIndex((c) => c.date > startDateStr);
 
-      if (availableHours > 0) {
-        if (!foundStart) {
-          startDate = new Date(currentDate);
-          foundStart = true;
-        }
-
-        const hoursToAllocate = Math.min(remainingHours, availableHours);
-        remainingHours -= hoursToAllocate;
-        dayCapacity.hoursAllocated += hoursToAllocate; // Track allocated hours
-      }
-    }
-
-    if (remainingHours > 0) {
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    endDate.setDate(endDate.getDate() + 1);
+  if (idx === -1) {
+    // No capacity entries on/after earliestStartDate. We'll start scanning from the end (no avail).
+    idx = employeeCapacity.length; // will skip main loop
   }
 
-  return { startDate, endDate: new Date(endDate) };
+  // Iterate over capacity entries from idx forward — guaranteed termination
+  let lastUsedDateStr: string | null = null;
+  for (let i = idx; i < employeeCapacity.length && remainingHours > 0; i++) {
+    const dayCapacity = employeeCapacity[i];
+    const availableHours =
+      dayCapacity.hoursAvailable - dayCapacity.hoursAllocated;
+
+    if (availableHours > 0) {
+      if (!foundStart) {
+        startDate = new Date(dayCapacity.date + "T00:00:00"); // treat as local day start
+        foundStart = true;
+      }
+
+      const hoursToAllocate = Math.min(remainingHours, availableHours);
+      remainingHours -= hoursToAllocate;
+      dayCapacity.hoursAllocated += hoursToAllocate; // Track allocated hours
+      lastUsedDateStr = dayCapacity.date;
+    }
+  }
+
+  if (remainingHours <= 0 && lastUsedDateStr) {
+    const endDate = new Date(lastUsedDateStr + "T00:00:00");
+    endDate.setDate(endDate.getDate() + 1);
+    return { startDate, endDate };
+  } else {
+    return null;
+  }
 }
 
 function getTaskProgress(status: Task["status"]): number {
@@ -246,13 +257,13 @@ export function getDateRange(tasks: GanttTask[]): { start: Date; end: Date } {
     };
   }
 
-  const startDates = tasks.map((t) => t.startDate);
-  const endDates = tasks.map((t) => t.endDate);
+  const schedulableTasks = tasks.filter((t) => t.startDate && t.endDate);
+  const startDates = schedulableTasks.map((t) => t.startDate);
+  const endDates = schedulableTasks.map((t) => t.endDate);
 
-  const start = new Date(Math.min(...startDates.map((d) => d.getTime())));
-  const end = new Date(Math.max(...endDates.map((d) => d.getTime())));
+  const start = new Date(Math.min(...startDates.map((d) => d!.getTime())));
+  const end = new Date(Math.max(...endDates.map((d) => d!.getTime())));
 
-  // Add some padding
   start.setDate(start.getDate() - 1);
   end.setDate(end.getDate() + 1);
 

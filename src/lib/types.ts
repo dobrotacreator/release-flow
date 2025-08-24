@@ -52,8 +52,8 @@ export interface ProjectData {
 export interface GanttTask {
   id: string;
   name: string;
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   progress: number; // 0-100
   dependencies: string[];
   assignedEmployee?: string;
@@ -63,5 +63,5 @@ export interface GanttTask {
 export interface GanttData {
   tasks: GanttTask[];
   employees: { id: string; name: string; color: string }[];
-  releaseDate?: Date;
+  releaseDate: Date | null;
 }
