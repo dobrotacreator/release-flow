@@ -1,7 +1,7 @@
 import React from "react";
 import { Target } from "lucide-react";
 
-type Variant = "info" | "danger";
+type Variant = "danger" | "warning" | "neutral" | "info";
 
 const variantMap: Record<
   Variant,
@@ -26,6 +26,20 @@ const variantMap: Record<
     iconColor: "text-rose-600",
     border: "border-rose-400",
     bg: "bg-rose-50",
+  },
+  warning: {
+    wrapper: "border-amber-400 bg-amber-50",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-600",
+    border: "border-amber-400",
+    bg: "bg-amber-50",
+  },
+  neutral: {
+    wrapper: "border-slate-300 bg-slate-50",
+    iconBg: "bg-slate-100",
+    iconColor: "text-slate-700",
+    border: "border-slate-300",
+    bg: "bg-slate-50",
   },
 };
 

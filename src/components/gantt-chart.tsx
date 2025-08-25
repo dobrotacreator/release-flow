@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, JSX } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,14 +9,24 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar, Clock, User, ArrowRight, Target } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  User,
+  ArrowRight,
+  Target,
+  AlertTriangle,
+  LinkIcon,
+  ZapOff,
+} from "lucide-react";
 import {
   formatGanttDate,
   getDateRange,
   calculateGanttData,
 } from "@/lib/gantt-calculator";
-import type { Release, GanttTask } from "@/lib/types";
-import { NoticeCard } from "./NoticeCard";
+import type { Release, GanttTask, UnscheduledReason } from "@/lib/types";
+import { NoticeCard } from "@/components/NoticeCard";
+import { isHoliday, isWorkingDay } from "@/lib/date-utils";
 
 interface GanttChartProps {
   release: Release;
@@ -28,6 +38,74 @@ export function GanttChart({ release }: GanttChartProps) {
     () => getDateRange(ganttData.tasks),
     [ganttData.tasks],
   );
+
+  const unscheduledGroups = useMemo(() => {
+    const map = new Map<UnscheduledReason, GanttTask[]>();
+    const allCodes: UnscheduledReason[] = [
+      "cycle",
+      "no_capacity",
+      "external_blocker",
+      "unknown",
+    ];
+    allCodes.forEach((c) => map.set(c, []));
+
+    for (const t of ganttData.tasks) {
+      if (!t.startDate || !t.endDate) {
+        const code = t.unscheduledReason || "unknown";
+        const bucket = map.get(code) || [];
+        bucket.push(t);
+        map.set(code, bucket);
+      }
+    }
+
+    return map;
+  }, [ganttData.tasks]);
+
+  const REASON_META: Record<
+    UnscheduledReason,
+    {
+      variant: "danger" | "warning" | "neutral" | "info";
+      icon: JSX.Element;
+      subtitle: string;
+      titlePrefix: string;
+      badgeVariant: "destructive" | "warning" | "secondary" | "outline";
+      tooltipText: string;
+    }
+  > = {
+    cycle: {
+      variant: "danger",
+      icon: <AlertTriangle className="h-5 w-5 text-rose-600" />,
+      subtitle: "Task(s) involved in a dependency cycle.",
+      titlePrefix: "Dependency cycle",
+      badgeVariant: "destructive",
+      tooltipText: "Cycle detected (circular dependency)",
+    },
+    no_capacity: {
+      variant: "danger",
+      icon: <ZapOff className="h-5 w-5 text-rose-600" />,
+      subtitle:
+        "Assigned employees lack available hours in the planning horizon.",
+      titlePrefix: "Capacity problem",
+      badgeVariant: "destructive",
+      tooltipText: "Insufficient capacity for assigned employee",
+    },
+    external_blocker: {
+      variant: "warning",
+      icon: <LinkIcon className="h-5 w-5 text-amber-500" />,
+      subtitle: "Task depends on an external or unknown blocker.",
+      titlePrefix: "External blocker",
+      badgeVariant: "warning",
+      tooltipText: "Depends on an external / unknown blocker",
+    },
+    unknown: {
+      variant: "neutral",
+      icon: <AlertTriangle className="h-5 w-5 text-muted-foreground" />,
+      subtitle: "Reason not specified — treat as unknown.",
+      titlePrefix: "Unknown issue",
+      badgeVariant: "secondary",
+      tooltipText: "Unknown reason for unscheduling",
+    },
+  };
 
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
@@ -93,7 +171,8 @@ export function GanttChart({ release }: GanttChartProps) {
       (1000 * 60 * 60 * 24);
     const duration =
       (task.endDate.getTime() - task.startDate.getTime()) /
-      (1000 * 60 * 60 * 24);
+        (1000 * 60 * 60 * 24) +
+      1;
 
     return {
       left: startOffset * dayWidth,
@@ -115,41 +194,71 @@ export function GanttChart({ release }: GanttChartProps) {
 
   const timelineHeaders = generateTimelineHeaders();
 
+  const renderNoticeCards = () => {
+    const order: UnscheduledReason[] = [
+      "cycle",
+      "no_capacity",
+      "external_blocker",
+      "unknown",
+    ];
+    return order.map((code) => {
+      const items = unscheduledGroups.get(code) || [];
+      if (!items || items.length === 0) return null;
+      const meta = REASON_META[code];
+
+      return (
+        <NoticeCard
+          key={code}
+          variant={meta.variant}
+          icon={meta.icon}
+          subtitle={meta.subtitle}
+          title={`${meta.titlePrefix}: ${items.length} task${items.length > 1 ? "s" : ""}`}
+        >
+          <ul className="list-disc ml-5 mt-2">
+            {items.map((t) => (
+              <li key={t.id} className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="font-medium truncate max-w-xl">{t.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t.assignedEmployee
+                      ? `Assigned: ${t.assignedEmployee}`
+                      : "Unassigned"}
+                    {t.dependencies &&
+                      t.dependencies.length > 0 &&
+                      ` • Depends: ${t.dependencies.length}`}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </NoticeCard>
+      );
+    });
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {ganttData.tasks.some((t) => !t.startDate || !t.endDate) ? (
-          <NoticeCard
-            variant="danger"
-            icon={<div className="w-3 h-3 rounded-full bg-rose-500" />}
-            subtitle="Capacity problem"
-            title={`${ganttData.tasks.filter((t) => !t.startDate || !t.endDate).length} task(s) could not be scheduled because assigned employees lack available hours in the planning horizon.`}
-          >
-            <ul className="list-disc ml-5 mt-2">
-              {ganttData.tasks
-                .filter((t) => !t.startDate || !t.endDate)
-                .map((t) => (
-                  <li key={t.id}>
-                    <span className="font-medium">{t.name}</span>
-                  </li>
-                ))}
-            </ul>
-          </NoticeCard>
-        ) : (
+        {/* Notice cards area: multiple cards may appear */}
+        <div className="space-y-3">{renderNoticeCards()}</div>
+
+        {/* If there are no unscheduled tasks, show release date card */}
+        {Array.from(unscheduledGroups.values()).every(
+          (arr) => arr.length === 0,
+        ) &&
           ganttData.releaseDate && (
             <NoticeCard
               variant="info"
               icon={<Target className="h-5 w-5" />}
               subtitle="Calculated Release Date"
-              title={ganttData.releaseDate.toLocaleDateString("en-EN", {
+              title={ganttData.releaseDate.toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
                 month: "long",
                 day: "numeric",
               })}
             />
-          )
-        )}
+          )}
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4">
@@ -205,23 +314,16 @@ export function GanttChart({ release }: GanttChartProps) {
                   >
                     <div className="flex" style={{ minWidth: chartWidth }}>
                       {timelineHeaders.map((date, index) => {
-                        const isWeekend =
-                          date.getDay() === 0 || date.getDay() === 6;
-                        const isHoliday = release.customHolidays.includes(
-                          date.toISOString().split("T")[0],
-                        );
-                        const isNonWorking = isWeekend || isHoliday;
-
                         return (
                           <div
                             key={index}
-                            className={`border-r text-center text-xs font-medium flex-shrink-0 flex flex-col items-center justify-center ${isNonWorking ? "bg-red-50 text-red-600" : ""}`}
+                            className={`border-r text-center text-xs font-medium flex-shrink-0 flex flex-col items-center justify-center ${isWorkingDay(date, release.customHolidays) ? "" : "bg-red-50 text-red-600"}`}
                             style={{ width: dayWidth, height: headerHeight }}
                           >
                             <div className="leading-tight text-[11px]">
                               {formatGanttDate(date)}
                             </div>
-                            {isHoliday && (
+                            {isHoliday(date, release.customHolidays) && (
                               <div className="text-xs mt-0.5">🎉</div>
                             )}
                           </div>
@@ -237,74 +339,100 @@ export function GanttChart({ release }: GanttChartProps) {
                 <div className="flex">
                   {/* Fixed task names column */}
                   <div className="w-64 flex-shrink-0">
-                    {ganttData.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="border-b border-r p-3 bg-background"
-                        style={{ height: taskHeight + taskSpacing }}
-                      >
-                        <div className="flex flex-col justify-center h-full min-w-0 gap-1">
-                          {/* Task name */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="font-medium text-sm truncate w-full min-w-0 whitespace-nowrap overflow-hidden cursor-default">
-                                {task.name}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <div className="font-semibold">{task.name}</div>
-                            </TooltipContent>
-                          </Tooltip>
+                    {ganttData.tasks.map((task) => {
+                      const reason =
+                        (task.unscheduledReason as UnscheduledReason) ||
+                        (!task.startDate || !task.endDate
+                          ? "unknown"
+                          : undefined);
+                      const meta = reason ? REASON_META[reason] : null;
 
-                          <div className="flex items-center gap-2 flex-wrap text-xs min-w-0">
-                            {/* Assigned employee */}
-                            {task.assignedEmployee && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge
-                                    variant="outline"
-                                    className="flex-shrink min-w-0 max-w-[120px] truncate cursor-default"
-                                  >
-                                    <User className="h-3 w-3 mr-1 flex-shrink-0" />
-                                    <span className="truncate">
-                                      {task.assignedEmployee}
-                                    </span>
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  {task.assignedEmployee}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
+                      return (
+                        <div
+                          key={task.id}
+                          className="border-b border-r p-3 bg-background"
+                          style={{ height: taskHeight + taskSpacing }}
+                        >
+                          <div className="flex flex-col justify-center h-full min-w-0 gap-1">
+                            {/* Task name */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="font-medium text-sm truncate w-full min-w-0 whitespace-nowrap overflow-hidden cursor-default">
+                                  {task.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="font-semibold">{task.name}</div>
+                              </TooltipContent>
+                            </Tooltip>
 
-                            {/* Progress */}
-                            <Badge
-                              variant="secondary"
-                              className="flex-shrink-0"
-                            >
-                              {task.progress}%
-                            </Badge>
+                            <div className="flex items-center gap-2 flex-wrap text-xs min-w-0">
+                              {/* Assigned employee */}
+                              {task.assignedEmployee && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="outline"
+                                      className="flex-shrink min-w-0 max-w-[120px] truncate cursor-default"
+                                    >
+                                      <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                                      <span className="truncate">
+                                        {task.assignedEmployee}
+                                      </span>
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    {task.assignedEmployee}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
 
-                            {/* No capacity */}
-                            {(!task.startDate || !task.endDate) && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge
-                                    variant="destructive"
-                                    className="flex-shrink-0 cursor-default"
-                                  >
-                                    ⚠️
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  ⚠️ No capacity
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
+                              {/* Progress */}
+                              <Badge
+                                variant="secondary"
+                                className="flex-shrink-0"
+                              >
+                                {task.progress}%
+                              </Badge>
+
+                              {/* Unscheduled reason badge (if any) */}
+                              {(!task.startDate || !task.endDate) && meta && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="destructive"
+                                      className="flex-shrink-0 cursor-default"
+                                    >
+                                      ⚠️
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    ⚠️ {meta.tooltipText}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {/* Fallback generic warning if no meta (shouldn't happen) */}
+                              {(!task.startDate || !task.endDate) && !meta && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="destructive"
+                                      className="flex-shrink-0 cursor-default"
+                                    >
+                                      ⚠️
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    Task unscheduled
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Scrollable timeline content */}
@@ -370,21 +498,18 @@ export function GanttChart({ release }: GanttChartProps) {
                                         <div>
                                           📅{" "}
                                           {task.startDate.toLocaleDateString(
-                                            "ru-RU",
+                                            "en-US",
                                           )}{" "}
                                           -{" "}
                                           {task.endDate.toLocaleDateString(
-                                            "ru-RU",
+                                            "en-US",
                                           )}
                                         </div>
                                         <div>
-                                          ⏱️ h (
+                                          ⏱️{task.estimatedHours}h (
                                           {Math.round(
-                                            ((task.endDate.getTime() -
-                                              task.startDate.getTime()) /
-                                              (1000 * 60 * 60 * 24)) *
-                                              10,
-                                          ) / 10}{" "}
+                                            (task.estimatedHours / 8) * 100,
+                                          ) / 100}{" "}
                                           days)
                                         </div>
                                         {task.assignedEmployee && (

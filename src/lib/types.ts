@@ -48,16 +48,23 @@ export interface ProjectData {
   activeReleaseId: string | null;
 }
 
-// Gantt chart data structures
+export type UnscheduledReason =
+  | "cycle"
+  | "no_capacity"
+  | "external_blocker"
+  | "unknown";
+
 export interface GanttTask {
   id: string;
   name: string;
+  estimatedHours: number;
   startDate?: Date;
   endDate?: Date;
   progress: number; // 0-100
   dependencies: string[];
   assignedEmployee?: string;
   color?: string;
+  unscheduledReason?: UnscheduledReason;
 }
 
 export interface GanttData {

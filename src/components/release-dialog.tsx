@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/date-utils";
+import { formatDate, toUTCDateOnly } from "@/lib/date-utils";
 import type { Release } from "@/lib/types";
 
 interface ReleaseDialogProps {
@@ -88,9 +88,9 @@ export function ReleaseDialog({
     onSave({
       name: name.trim(),
       description: description.trim() || undefined,
-      startDate: startDate.toISOString(),
-      targetEndDate: targetEndDate?.toISOString(),
-      customHolidays: customHolidays.map((d) => d.toISOString().split("T")[0]),
+      startDate: toUTCDateOnly(startDate),
+      targetEndDate: targetEndDate && toUTCDateOnly(targetEndDate),
+      customHolidays: customHolidays.map(toUTCDateOnly),
       employees: release?.employees || [],
       tasks: release?.tasks || [],
     });

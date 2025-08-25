@@ -6,7 +6,7 @@ export function isWeekend(date: Date): boolean {
 }
 
 export function isHoliday(date: Date, customHolidays: string[]): boolean {
-  const dateString = date.toISOString().split("T")[0];
+  const dateString = toUTCDateOnly(date);
   return customHolidays.includes(dateString);
 }
 
@@ -63,7 +63,8 @@ export function formatDate(date: Date | string): string {
   });
 }
 
-export function formatDateInput(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toISOString().split("T")[0];
+export function toUTCDateOnly(date: Date): string {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    .toISOString()
+    .split("T")[0];
 }
