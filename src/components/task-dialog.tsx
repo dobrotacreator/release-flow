@@ -87,9 +87,10 @@ export function TaskDialog({
       estimatedHours,
       assignedEmployeeId,
       blockerTaskIds,
-      priority: task?.priority || 0,
+      priority: task?.priority || existingTasks.length,
       status,
     });
+    console.log(existingTasks);
 
     onOpenChange(false);
   };
