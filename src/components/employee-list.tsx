@@ -143,22 +143,20 @@ export function EmployeeList({
 
                 {employee.capacityPeriods.length > 0 ? (
                   <div className="space-y-1">
-                    {employee.capacityPeriods
-                      .slice(0, 2)
-                      .map((period, index) => (
-                        <div
-                          key={period.id}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span className="text-muted-foreground">
-                            {formatDate(period.startDate)} -{" "}
-                            {formatDate(period.endDate)}
-                          </span>
-                          <Badge variant="outline" className="text-xs">
-                            {period.hoursPerDay}h
-                          </Badge>
-                        </div>
-                      ))}
+                    {employee.capacityPeriods.slice(0, 2).map((period) => (
+                      <div
+                        key={period.id}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <span className="text-muted-foreground">
+                          {formatDate(period.startDate)} -{" "}
+                          {formatDate(period.endDate)}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {period.hoursPerDay}h
+                        </Badge>
+                      </div>
+                    ))}
                     {employee.capacityPeriods.length > 2 && (
                       <p className="text-xs text-muted-foreground">
                         +{employee.capacityPeriods.length - 2} more periods

@@ -246,7 +246,7 @@ function calculateTaskSchedule(
   employeeCapacity.forEach((c, i) => dateIndexMap.set(c.date, i));
 
   const startDateStr = earliestStartDate.toISOString().split("T")[0];
-  let idx = dateIndexMap.has(startDateStr)
+  const idx = dateIndexMap.has(startDateStr)
     ? (dateIndexMap.get(startDateStr) as number)
     : employeeCapacity.findIndex((c) => c.date > startDateStr);
 
