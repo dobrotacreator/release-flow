@@ -15,7 +15,7 @@ interface EmployeeCapacity {
   hoursAllocated: number; // Track allocated hours per day
 }
 
-function orderTasksByDependenciesAndPriority(tasks: Task[]): Task[] {
+export function orderTasksByDependenciesAndPriority(tasks: Task[]): Task[] {
   const graph = new Map<string, Set<string>>();
   const inDegree = new Map<string, number>();
   const taskById = new Map(tasks.map((t) => [t.id, t]));

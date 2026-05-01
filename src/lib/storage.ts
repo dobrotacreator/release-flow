@@ -1,5 +1,3 @@
-// Local storage utilities for data persistence
-
 import type { ProjectData, Release, Employee, Task } from "@/lib/types";
 import { v4 } from "uuid";
 const STORAGE_KEY = "release-flow-data";
